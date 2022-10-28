@@ -79,4 +79,43 @@ router.post("/workout", (req, res) => {
   );
 });
 
+router.post("/search/:keyword", async (req, res) => {
+  const { keyword } = req.params;
+  const playerData = [];
+
+  await client.indices.refresh({ index: "workout" });
+
+  const { body } = await client.search({
+    index: "workout",
+    body: {
+      query: {
+        match: {
+          "_doc.id": { query: keyword, fuzziness: "auto" },
+        },
+      },
+      sort: { "_doc.id": "desc" },
+      highlight: {
+        pre_tags: ["<strong>"],
+        post_tags: ["</strong>"],
+        fields: {
+          "_doc.id": {},
+        },
+      },
+    },
+  });
+
+  if (body.hits.hits.length == 0) {
+    console.log("No Match");
+  } else {
+    body.hits.hits.forEach((el) => {
+      playerData.push(el._source._doc);
+    });
+  }
+
+  return res.status(200).json({
+    message: "success",
+    data: playerData,
+  });
+});
+
 module.exports = router;
